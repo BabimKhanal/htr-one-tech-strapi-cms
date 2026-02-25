@@ -123,6 +123,7 @@ coverage
 
 .node_modules
 .env
+.env.local
 license.txt
 exports
 .strapi
@@ -130,3 +131,4 @@ dist
 build
 .strapi-updater.json
 .strapi-cloud.json
+.dist
