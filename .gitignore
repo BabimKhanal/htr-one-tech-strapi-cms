@@ -121,6 +121,7 @@ coverage
 # Strapi
 ############################
 
+.node_modules
 .env
 license.txt
 exports
