@@ -18,11 +18,7 @@
     "@strapi/plugin-cloud": "5.36.1",
     "@strapi/plugin-users-permissions": "5.36.1",
     "@strapi/strapi": "5.36.1",
-    "better-sqlite3": "12.4.1",
-    "react": "^18.0.0",
-    "react-dom": "^18.0.0",
-    "react-router-dom": "^6.0.0",
-    "styled-components": "^6.0.0"
+    "better-sqlite3": "12.4.1"
   },
   "devDependencies": {
     "@types/node": "^20",
@@ -30,10 +26,10 @@
     "@types/react-dom": "^18",
     "typescript": "^5"
   },
-  "engines": {
-    "node": ">=20.0.0 <=24.x.x",
-    "npm": ">=6.0.0"
-  },
+"engines": {
+  "node": "18.x"
+  
+},
   "strapi": {
     "uuid": "522cbbc0-cd53-416d-a34c-8c00765dc823",
     "installId": "1988376e045d4b4bc71dc6501a058e19e059bf0c1c969e9f031c4070e180fae8"
