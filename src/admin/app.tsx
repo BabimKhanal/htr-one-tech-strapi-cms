@@ -2,6 +2,8 @@ export default {
     config: {
         head: {
             title: "HTR ONE TECH ", // Browser tab title
+
+
         },
         translations: {
             en: {
@@ -9,5 +11,15 @@ export default {
                 "Auth.form.welcome.subtitle": "Secure Admin Access",
             },
         },
+        menu: {
+            "content-manager": {
+                "users-permissions": {
+                    "users": {
+                        "title": "Users",
+                        "icon": "users"
+                    }
+                }
+            }
+        }
     },
 };
