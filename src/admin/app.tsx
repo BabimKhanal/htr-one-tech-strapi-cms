@@ -2,6 +2,7 @@ export default {
     config: {
         head: {
             title: "HTR ONE TECH ", // Browser tab title
+            favicon: "./favicon.ico",
 
 
         },
