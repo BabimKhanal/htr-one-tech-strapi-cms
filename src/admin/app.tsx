@@ -1,26 +1,21 @@
+import GenerateContent from "./components/GenerateContent";
+
 export default {
-    config: {
-        head: {
-            title: "HTR ONE TECH ", // Browser tab title
-            favicon: "./favicon.ico",
-
-
-        },
-        translations: {
-            en: {
-                "Auth.form.welcome.title": "Welcome to HTR ONE TECH",
-                "Auth.form.welcome.subtitle": "Secure Admin Access",
-            },
-        },
-        menu: {
-            "content-manager": {
-                "users-permissions": {
-                    "users": {
-                        "title": "Users",
-                        "icon": "users"
-                    }
-                }
-            }
-        }
+  config: {
+    head: {
+      title: "HTR ONE TECH",
+      favicon: "./favicon.ico",
     },
+  },
+
+  register() { },
+
+  bootstrap(app: any) {
+    const contentManager = app.getPlugin("content-manager");
+
+    contentManager.injectComponent("editView", "right-links", {
+      name: "ai-generate-content",
+      Component: GenerateContent
+    });
+  },
 };
