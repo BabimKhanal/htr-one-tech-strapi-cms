@@ -120,7 +120,6 @@ coverage
 ############################
 
 .node_modules
-.env
 .env.local
 license.txt
 exports
