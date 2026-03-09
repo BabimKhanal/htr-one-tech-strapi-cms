@@ -16,6 +16,10 @@ import {
 
 export default function GenerateContent() {
   const { form, model } = useContentManagerContext() as any;
+  const API_URL =
+    process.env.STRAPI_ADMIN_AI_API_URL ||
+    "https://htr-one-tech-strapi-cms.onrender.com";
+
   const toggleNotification = useNotification();
 
   // --- CONFIGURATION ---
@@ -39,7 +43,7 @@ export default function GenerateContent() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${process.env.API_URL || "http://localhost:1337"}/api/ai/generate`, {
+      const res = await fetch(`${API_URL || "http://localhost:1337"}/api/ai/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: prompt, fields }),
