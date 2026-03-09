@@ -20,6 +20,18 @@ const config: Core.Config.Middlewares = [
       },
     },
   },
+  {
+    name: "strapi::cors",
+    config: {
+      origin: [
+        "http://localhost:1337",
+        "https://htr-one-tech-strapi-cms.onrender.com",
+      ],
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"],
+      headers: ["Content-Type", "Authorization", "Origin", "Accept"],
+      keepHeaderCase: true,
+    },
+  },
 
   "strapi::session",
   "strapi::favicon",

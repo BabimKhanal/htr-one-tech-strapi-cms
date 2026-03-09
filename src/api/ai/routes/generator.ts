@@ -1,12 +1,10 @@
-export default {
+module.exports = {
   routes: [
     {
-      method: "POST",
+      method: "POST", // Make sure this is POST
       path: "/ai/generate",
       handler: "generator.generate",
-      config: {
-        auth: false,
-      },
+      config: { auth: false },
     },
   ],
 };
