@@ -16,6 +16,7 @@ import {
 
 export default function GenerateContent() {
   const { form, model } = useContentManagerContext() as any;
+  const { toggleNotification } = useNotification();
 
 
 
@@ -64,11 +65,15 @@ export default function GenerateContent() {
 
     } catch (error) {
       console.error(error);
-      console.log({
+      toggleNotification({
         type: "danger",
         message: "Failed to generate content. Check the server logs.",
       });
     } finally {
+      toggleNotification({
+        type: "success",
+        message: "Content Generated Successfully",
+      })
       setLoading(false);
     }
   };
