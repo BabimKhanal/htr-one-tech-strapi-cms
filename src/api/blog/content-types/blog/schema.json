@@ -21,6 +21,7 @@
     "title": {
       "type": "string",
       "default": "Why Bespoke Software Wins",
+      "maxLength": 20,
       "required": true
     },
     "subtitle": {

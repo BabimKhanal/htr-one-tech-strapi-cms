@@ -463,6 +463,9 @@ export interface ApiBlogBlog extends Struct.CollectionTypeSchema {
     subtitle: Schema.Attribute.String & Schema.Attribute.Required;
     title: Schema.Attribute.String &
       Schema.Attribute.Required &
+      Schema.Attribute.SetMinMaxLength<{
+        maxLength: 20;
+      }> &
       Schema.Attribute.DefaultTo<'Why Bespoke Software Wins'>;
     updatedAt: Schema.Attribute.DateTime;
     updatedBy: Schema.Attribute.Relation<'oneToOne', 'admin::user'> &
