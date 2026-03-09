@@ -84,7 +84,7 @@ export default function GenerateContent() {
       <Box padding={4} width="100%" background="neutral0" hasRadius shadow="tableShadow" borderColor="primary200" borderStyle="solid" borderWidth="1px">
         <Flex direction="column" alignItems="stretch" gap={4}>
           <Flex gap={2} alignItems="center">
-            <Box background="primary100" padding={2} hasRadius borderColor="primary200" borderStyle="solid" borderWidth="1px" display="flex" justifyContent="center" alignItems="center">
+            <Box background="primary100" padding={2} hasRadius borderColor="primary200" borderStyle="solid" borderWidth="1px" display="flex" >
               <Magic color="primary600" />
             </Box>
             <Typography variant="omega" fontWeight="bold" textColor="neutral800">
@@ -112,7 +112,7 @@ export default function GenerateContent() {
           <Modal.Content>
             <Modal.Header>
               <Flex gap={2} alignItems="center">
-                <Box background="primary100" padding={1} hasRadius borderColor="primary200" borderStyle="solid" borderWidth="1px" display="flex" justifyContent="center" alignItems="center">
+                <Box background="primary100" padding={1} hasRadius borderColor="primary200" borderStyle="solid" borderWidth="1px" display="flex" >
                   <Magic color="primary600" />
                 </Box>
                 <Typography fontWeight="bold" textColor="neutral800" variant="beta">
@@ -125,17 +125,17 @@ export default function GenerateContent() {
               <Flex direction="column" alignItems="stretch" gap={5}>
                 {/* Info Banner */}
                 <Box padding={4} background="primary100" hasRadius borderColor="primary200" borderStyle="solid" borderWidth="1px">
-                   <Flex gap={3} alignItems="flex-start">
-                     <Box paddingTop={1}>
-                       <Information color="primary600" />
-                     </Box>
-                     <Flex direction="column" alignItems="start" gap={1}>
-                       <Typography textColor="primary700" fontWeight="bold" variant="pi">AI Assistance</Typography>
-                       <Typography textColor="primary600" variant="pi">
-                         Our AI agent will read your prompt and automatically populate the fields below with high-quality content tailored to your model structure.
-                       </Typography>
-                     </Flex>
-                   </Flex>
+                  <Flex gap={3} alignItems="flex-start">
+                    <Box paddingTop={1}>
+                      <Information color="primary600" />
+                    </Box>
+                    <Flex direction="column" alignItems="start" gap={1}>
+                      <Typography textColor="primary700" fontWeight="bold" variant="pi">AI Assistance</Typography>
+                      <Typography textColor="primary600" variant="pi">
+                        Our AI agent will read your prompt and automatically populate the fields below with high-quality content tailored to your model structure.
+                      </Typography>
+                    </Flex>
+                  </Flex>
                 </Box>
 
                 <Field.Root name="prompt" required>
@@ -148,9 +148,7 @@ export default function GenerateContent() {
                       rows={5}
                     />
                   </Box>
-                  <Box paddingTop={1}>
-                    <Field.Hint>Be as detailed as possible about tone, target audience, and key points to cover.</Field.Hint>
-                  </Box>
+
                 </Field.Root>
 
                 <Divider />
