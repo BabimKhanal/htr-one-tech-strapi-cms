@@ -6,6 +6,7 @@ export default {
       title: "HTR ONE TECH",
       favicon: "./favicon.ico",
     },
+    
   },
 
   register() { },

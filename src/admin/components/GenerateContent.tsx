@@ -20,10 +20,8 @@ export default function GenerateContent() {
     process.env.STRAPI_ADMIN_AI_API_URL ||
     "https://htr-one-tech-strapi-cms.onrender.com";
 
-  const toggleNotification = useNotification();
 
-  // --- CONFIGURATION ---
-  // Only show this tool for these Content Types
+
   const ALLOWED_UIDS = ["api::blog.blog", "api::faq.faq", "api::service.service"];
 
   const [isOpen, setIsOpen] = useState(false);
