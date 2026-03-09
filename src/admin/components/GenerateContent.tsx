@@ -39,7 +39,7 @@ export default function GenerateContent() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:1337/api/ai/generate", {
+      const res = await fetch(`${process.env.API_URL || "http://localhost:1337"}/api/ai/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ topic: prompt, fields }),
