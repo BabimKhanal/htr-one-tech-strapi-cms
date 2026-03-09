@@ -26,7 +26,7 @@ export default function GenerateContent() {
   const [loading, setLoading] = useState(false);
 
   const fields = Object.keys(form.values).filter(
-    (key) => !["documentId", "slug", "is_active", "images", "createdAt", "updatedAt", "publishedAt"].includes(key)
+    (key) => !["documentId", "is_active", "images", "createdAt", "updatedAt", "publishedAt"].includes(key)
   );
 
   if (!ALLOWED_UIDS.includes(model)) {
