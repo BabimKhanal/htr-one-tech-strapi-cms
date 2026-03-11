@@ -121,6 +121,7 @@ coverage
 
 .node_modules
 .env.local
+.db
 license.txt
 exports
 .strapi
