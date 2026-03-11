@@ -1,5 +1,4 @@
 import GenerateContent from "./components/GenerateContent";
-import AiSettings from "./pages/AIConfiguration";
 
 export default {
   config: {
@@ -11,15 +10,8 @@ export default {
   },
 
   register(
-    app: any
-  ) {
-    app.addMenuLink({
-      icon: () => "🦾",
-      label: "AI Configuration",
-      to: "/ai-configuration",
-      component: AiSettings,
-    })
-  },
+
+  ) { },
 
   bootstrap(app: any) {
     const contentManager = app.getPlugin("content-manager");
