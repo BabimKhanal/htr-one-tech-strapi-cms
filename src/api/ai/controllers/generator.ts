@@ -7,88 +7,135 @@ const client = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
+/* ------------------------------------------------ */
+/* Helpers */
+/* ------------------------------------------------ */
+
+function normalizeFields(fields = []) {
+  return fields.map((f) =>
+    typeof f === "string" ? { name: f, type: "string" } : f,
+  );
+}
+
+function buildFieldInstructions(fields) {
+  return fields
+    .map((field) => {
+      let instruction = `- "${field.name}": Must be a ${field.type || "string"}.`;
+
+      if (field.maxLength) {
+        instruction += ` Maximum ${field.maxLength} characters.`;
+      }
+
+      if (field.type === "blocks" || field.name === "content") {
+        instruction += ` Return as an ARRAY of Strapi Block objects.`;
+      }
+
+      return instruction;
+    })
+    .join("\n");
+}
+
+function buildPrompt(topic, fieldInstructions) {
+  return `
+You generate CMS content for Strapi.
+
+Topic:
+${topic}
+
+Fields:
+${fieldInstructions}
+
+RULES:
+- Return ONLY a raw JSON object.
+- Use EXACT field names.
+- If a field is "content", return an ARRAY of Strapi Block objects.
+
+BLOCK FORMAT EXAMPLE:
+[
+  {
+    "type": "heading",
+    "level": 2,
+    "children": [{ "type": "text", "text": "Title" }]
+  },
+  {
+    "type": "paragraph",
+    "children": [{ "type": "text", "text": "Body text" }]
+  }
+]
+`.trim();
+}
+
+function cleanJson(text) {
+  return text
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+}
+
+function parseAIResponse(raw) {
+  try {
+    return JSON.parse(cleanJson(raw));
+  } catch (err) {
+    throw new Error(`Invalid AI JSON: ${raw}`);
+  }
+}
+
+function transformBlocks(data) {
+  const result = {};
+
+  Object.keys(data).forEach((key) => {
+    if (key === "content") {
+      if (Array.isArray(data[key])) {
+        result[key] = data[key];
+      } else if (typeof data[key] === "string") {
+        result[key] = data[key].split("\n\n").map((p) => ({
+          type: "paragraph",
+          children: [{ type: "text", text: p }],
+        }));
+      }
+    } else {
+      result[key] = data[key];
+    }
+  });
+
+  return result;
+}
+
+/* ------------------------------------------------ */
+/* Controller */
+/* ------------------------------------------------ */
+
 module.exports = {
   async generate(ctx) {
-    const { topic, fields } = ctx.request.body;
-    console.log(fields);
-    const fieldInstructions = fields
-      .map((f) => {
-        // If f is a string (e.g., "question"), create a default object
-        const field = typeof f === "string" ? { name: f, type: "string" } : f;
-
-        let instruction = `- "${field.name}": Must be a ${field.type || "string"}.`;
-        if (field.maxLength)
-          instruction += ` Maximum ${field.maxLength} characters.`;
-
-        // Logic for blocks
-        if (field.type === "blocks" || field.name === "content") {
-          instruction += ` Return as an ARRAY of Strapi Block objects.`;
-        }
-        return instruction;
-      })
-      .join("\n      ");
-    console.log(fieldInstructions);
-    // 1. Enhanced Prompt for Strapi Blocks
-    const prompt = `
-      You are generating CMS content for Strapi.
-      Topic: ${topic}
-      Fields to generate: ${fieldInstructions}
-
-
-      RULES:
-      - Return ONLY a raw JSON object. 
-      - Use EXACT field names.
-      - If the field is "content", return an ARRAY of Strapi Block objects.
-      
-      BLOCK FORMAT EXAMPLE for "content":
-      [
-        { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Title" }] },
-        { "type": "paragraph", "children": [{ "type": "text", "text": "Body text" }] }
-         
-      ]
-      
-      
-    `;
-    console.log(prompt);
     try {
+      const { topic, fields } = ctx.request.body;
+
+      if (!topic || !fields) {
+        ctx.throw(400, "Topic and fields are required");
+      }
+
+      const normalizedFields = normalizeFields(fields);
+
+      const fieldInstructions = buildFieldInstructions(normalizedFields);
+
+      const prompt = buildPrompt(topic, fieldInstructions);
+
       const response = await client.chat.completions.create({
         model: "openai/gpt-4o-mini",
         messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" }, // Forces JSON mode if the model supports it
+        response_format: { type: "json_object" },
       });
 
-      let rawText = response.choices[0].message.content;
+      const raw = response.choices?.[0]?.message?.content || "{}";
 
-      // 2. Clean the AI output (removes ```json ... ``` blocks)
-      const cleanJson = rawText
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-      const parsed = JSON.parse(cleanJson);
+      const parsed = parseAIResponse(raw);
 
-      const result = {};
-
-      // 3. Process Fields
-      Object.keys(parsed).forEach((key) => {
-        if (key === "content") {
-          if (Array.isArray(parsed[key])) {
-            result[key] = parsed[key];
-          } else if (typeof parsed[key] === "string") {
-            result[key] = parsed[key].split("\n\n").map((p) => ({
-              type: "paragraph",
-              children: [{ type: "text", text: p }],
-            }));
-          }
-        } else {
-          result[key] = parsed[key];
-        }
-      });
+      const result = transformBlocks(parsed);
 
       ctx.body = result;
-      console.log(result);
     } catch (error) {
-      console.error("AI Generation Error:", error);
-      ctx.throw(500, `AI Failed: ${error.message}`);
+      strapi.log.error("AI Generation Error:", error);
+      ctx.throw(500, `AI generation failed: ${error.message}`);
     }
   },
 };

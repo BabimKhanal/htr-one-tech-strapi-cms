@@ -4,45 +4,70 @@
   "info": {
     "singularName": "blog",
     "pluralName": "blogs",
-    "displayName": "Blogs"
+    "displayName": "Blog"
   },
-  "options": {
-    "draftAndPublish": true
-  },
-  "pluginOptions": {},
+  "options": {},
   "attributes": {
-    "slug": {
-      "type": "uid",
-      "targetField": "title",
-      "required": true,
-      "minLength": 1,
-      "maxLength": 200
+    "createdAt": {
+      "type": "datetime"
     },
     "title": {
       "type": "string",
-      "default": "Why Bespoke Software Wins",
       "required": true
     },
-    "subtitle": {
-      "type": "string",
-      "required": true
+    "description": {
+      "type": "text"
     },
-    "content": {
-      "type": "blocks",
-      "required": true
+    "updatedAt": {
+      "type": "datetime"
     },
-    "images": {
-      "type": "media",
-      "multiple": true,
-      "allowedTypes": [
-        "images",
-        "files",
-        "videos",
-        "audios"
-      ]
+    "publishedAt": {
+      "type": "datetime",
+      "configurable": false,
+      "writable": true,
+      "visible": true
     },
-    "is_active": {
-      "type": "boolean"
+    "createdBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "updatedBy": {
+      "type": "relation",
+      "relation": "oneToOne",
+      "target": "admin::user",
+      "configurable": false,
+      "writable": false,
+      "visible": false,
+      "useJoinTable": false,
+      "private": true
+    },
+    "locale": {
+      "writable": true,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "type": "string"
+    },
+    "localizations": {
+      "type": "relation",
+      "relation": "oneToMany",
+      "target": "api::blog.blog",
+      "writable": false,
+      "private": true,
+      "configurable": false,
+      "visible": false,
+      "unstable_virtual": true,
+      "joinColumn": {
+        "name": "document_id",
+        "referencedColumn": "document_id",
+        "referencedTable": "blogs"
+      }
     }
   }
 }
