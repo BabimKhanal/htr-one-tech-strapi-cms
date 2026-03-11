@@ -44,6 +44,7 @@ module.exports = {
       [
         { "type": "heading", "level": 2, "children": [{ "type": "text", "text": "Title" }] },
         { "type": "paragraph", "children": [{ "type": "text", "text": "Body text" }] }
+         
       ]
       
       
@@ -84,7 +85,7 @@ module.exports = {
       });
 
       ctx.body = result;
-      console.log(result)
+      console.log(result);
     } catch (error) {
       console.error("AI Generation Error:", error);
       ctx.throw(500, `AI Failed: ${error.message}`);

@@ -1,4 +1,5 @@
 import GenerateContent from "./components/GenerateContent";
+import AiSettings from "./pages/AIConfiguration";
 
 export default {
   config: {
@@ -6,10 +7,19 @@ export default {
       title: "HTR ONE TECH",
       favicon: "./favicon.ico",
     },
-    
+
   },
 
-  register() { },
+  register(
+    app: any
+  ) {
+    app.addMenuLink({
+      icon: () => "🦾",
+      label: "AI Configuration",
+      to: "/ai-configuration",
+      component: AiSettings,
+    })
+  },
 
   bootstrap(app: any) {
     const contentManager = app.getPlugin("content-manager");
