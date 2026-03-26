@@ -8,26 +8,36 @@ const client = new OpenAI({
 });
 
 /* ------------------------------------------------ */
-/* Helpers */
+/* Field Utilities */
 /* ------------------------------------------------ */
 
 function normalizeFields(fields = []) {
-  return fields.map((f) =>
-    typeof f === "string" ? { name: f, type: "string" } : f,
+  return fields.map((field) =>
+    typeof field === "string"
+      ? { name: field, type: "string" }
+      : {
+          name: field.name,
+          type: field.type || "string",
+          maxLength: field.maxLength || null,
+        },
   );
+}
+
+function isBlockField(field) {
+  return field.type === "blocks" || field.type === "richtext";
 }
 
 function buildFieldInstructions(fields) {
   return fields
     .map((field) => {
-      let instruction = `- "${field.name}": Must be a ${field.type || "string"}.`;
+      let instruction = `- "${field.name}": ${field.type}`;
 
       if (field.maxLength) {
-        instruction += ` Maximum ${field.maxLength} characters.`;
+        instruction += ` (max ${field.maxLength} characters)`;
       }
 
-      if (field.type === "blocks" || field.name === "content") {
-        instruction += ` Return as an ARRAY of Strapi Block objects.`;
+      if (isBlockField(field)) {
+        instruction += ` → Return as ARRAY of Strapi Block objects`;
       }
 
       return instruction;
@@ -35,70 +45,109 @@ function buildFieldInstructions(fields) {
     .join("\n");
 }
 
-function buildPrompt(topic, fieldInstructions) {
-  return `
-You generate CMS content for Strapi.
+/* ------------------------------------------------ */
+/* Prompt */
+/* ------------------------------------------------ */
 
-Topic:
+function buildPrompt(topic, fields) {
+  const instructions = buildFieldInstructions(fields);
+
+  return `
+You generate structured CMS content for Strapi.
+
+TOPIC:
 ${topic}
 
-Fields:
-${fieldInstructions}
+FIELDS:
+${instructions}
 
 RULES:
-- Return ONLY a raw JSON object.
-- Use EXACT field names.
-- If a field is "content", return an ARRAY of Strapi Block objects.
+- Return ONLY valid JSON
+- Use EXACT field names
+- No explanations
+- If a field requires blocks, return an array of Strapi Block objects.
 
-BLOCK FORMAT EXAMPLE:
+BLOCK FORMAT:
 [
   {
     "type": "heading",
     "level": 2,
-    "children": [{ "type": "text", "text": "Title" }]
+    "children": [{ "type": "text", "text": "Heading text" }]
   },
   {
     "type": "paragraph",
-    "children": [{ "type": "text", "text": "Body text" }]
+    "children": [{ "type": "text", "text": "Paragraph text" }]
   }
 ]
 `.trim();
 }
 
-function cleanJson(text) {
+/* ------------------------------------------------ */
+/* JSON Handling */
+/* ------------------------------------------------ */
+
+function cleanJSON(text = "") {
   return text
     .replace(/```json/g, "")
     .replace(/```/g, "")
     .trim();
 }
 
-function parseAIResponse(raw) {
+function parseJSON(text) {
   try {
-    return JSON.parse(cleanJson(raw));
+    return JSON.parse(cleanJSON(text));
   } catch (err) {
-    throw new Error(`Invalid AI JSON: ${raw}`);
+    throw new Error("AI returned invalid JSON");
   }
 }
 
-function transformBlocks(data) {
+/* ------------------------------------------------ */
+/* Block Transform */
+/* ------------------------------------------------ */
+
+function stringToBlocks(text) {
+  return text.split("\n\n").map((paragraph) => ({
+    type: "paragraph",
+    children: [{ type: "text", text: paragraph }],
+  }));
+}
+
+function transformOutput(data, fields) {
   const result = {};
 
-  Object.keys(data).forEach((key) => {
-    if (key === "content") {
-      if (Array.isArray(data[key])) {
-        result[key] = data[key];
-      } else if (typeof data[key] === "string") {
-        result[key] = data[key].split("\n\n").map((p) => ({
-          type: "paragraph",
-          children: [{ type: "text", text: p }],
-        }));
+  fields.forEach((field) => {
+    const value = data[field.name];
+
+    if (value === undefined) return;
+
+    if (isBlockField(field)) {
+      if (Array.isArray(value)) {
+        result[field.name] = value;
+      } else if (typeof value === "string") {
+        result[field.name] = stringToBlocks(value);
+      } else {
+        result[field.name] = [];
       }
     } else {
-      result[key] = data[key];
+      result[field.name] = value;
     }
   });
 
   return result;
+}
+
+/* ------------------------------------------------ */
+/* AI Request */
+/* ------------------------------------------------ */
+
+async function generateContent(prompt) {
+  const response = await client.chat.completions.create({
+    model: "openai/gpt-4o-mini",
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  });
+
+  return response.choices?.[0]?.message?.content || "{}";
 }
 
 /* ------------------------------------------------ */
@@ -116,25 +165,17 @@ module.exports = {
 
       const normalizedFields = normalizeFields(fields);
 
-      const fieldInstructions = buildFieldInstructions(normalizedFields);
+      const prompt = buildPrompt(topic, normalizedFields);
 
-      const prompt = buildPrompt(topic, fieldInstructions);
+      const raw = await generateContent(prompt);
 
-      const response = await client.chat.completions.create({
-        model: "openai/gpt-4o-mini",
-        messages: [{ role: "user", content: prompt }],
-        response_format: { type: "json_object" },
-      });
+      const parsed = parseJSON(raw);
 
-      const raw = response.choices?.[0]?.message?.content || "{}";
-
-      const parsed = parseAIResponse(raw);
-
-      const result = transformBlocks(parsed);
+      const result = transformOutput(parsed, normalizedFields);
 
       ctx.body = result;
     } catch (error) {
-      strapi.log.error("AI Generation Error:", error);
+      strapi.log.error("AI generation error:", error);
       ctx.throw(500, `AI generation failed: ${error.message}`);
     }
   },

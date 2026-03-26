@@ -1,158 +1,125 @@
-// components/AIResponse.tsx
-
+import {
+    Box,
+    Typography,
+    Flex,
+    Table,
+    Thead,
+    Tbody,
+    Tr,
+    Td,
+    Th,
+} from "@strapi/design-system";
+import { WarningCircle } from "@strapi/icons";
 import React from "react";
-import { Box, Typography, Flex, Badge } from "@strapi/design-system";
-import { Check, WarningCircle } from "@strapi/icons";
 
-const toolIcons: Record<string, string> = {
-    create_content_type: "🧱",
-    update_content_type: "✏️",
-    create_relation: "🔗",
-    generate_entry: "✨",
-    insert_entry: "📦",
-    bulk_insert_entries: "📚",
-    list_content_types: "📋",
-    get_schema: "📄",
-    get_all_schemas: "📑",
-};
+/**
+ * Smart Data Renderer
+ * Automatically chooses the best visualization based on data type.
+ */
+function SmartDataRenderer({ data }: { data: any }) {
+    if (!data) return null;
+
+    // 1. Array of Objects -> Render as Table
+    if (Array.isArray(data) && data.length > 0 && typeof data[0] === 'object') {
+        const keys = Object.keys(data[0]).filter(k => typeof data[0][k] !== 'object' || data[0][k] === null);
+
+        return (
+            <Box marginTop={3} marginBottom={4} style={{ border: '1px solid #eaeaef', borderRadius: '8px' }}>
+                <Table colCount={keys.length} rowCount={data.length}>
+                    <Thead>
+                        <Tr>
+                            {keys.map(key => (
+                                <Th key={key}>
+                                    <Typography variant="sigma" textColor="neutral600">{key.toUpperCase()}</Typography>
+                                </Th>
+                            ))}
+                        </Tr>
+                    </Thead>
+                    <Tbody>
+                        {data.map((row, i) => (
+                            <Tr key={i}>
+                                {keys.map(key => (
+                                    <Td key={key}>
+                                        <Typography textColor="neutral800">
+                                            {row[key] === null ? 'null' : String(row[key])}
+                                        </Typography>
+                                    </Td>
+                                ))}
+                            </Tr>
+                        ))}
+                    </Tbody>
+                </Table>
+            </Box>
+        );
+    }
+
+    // 2. Simple String -> Render as friendly text
+    if (typeof data === 'string') {
+        return (
+            <Box marginTop={2} padding={3} background="neutral100" hasRadius>
+                <Typography variant="omega" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.6' }}>
+                    {data}
+                </Typography>
+            </Box>
+        );
+    }
+
+    // 3. Fallback to JSON for complex objects
+    return (
+        <Box marginTop={2} padding={2} background="neutral100" hasRadius maxHeight="250px" overflow="auto">
+            <pre style={{ fontSize: '11px', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                {JSON.stringify(data, null, 2)}
+            </pre>
+        </Box>
+    );
+}
 
 export default function AIResponse({ data }: { data: any }) {
-    const hasTimeline = data.timeline?.length > 0;
-    const hasActions = data.actions?.length > 0;
-    const hasResults = data.results?.length > 0;
+    if (!data) return null;
 
     return (
         <Box>
-
-            {/* Status */}
-            <Flex gap={2} alignItems="center" marginBottom={3}>
-                <Badge variant={data.success ? "success" : "warning"}>
-                    {data.success ? "Success" : "Failed"}
-                </Badge>
-
-                {data.notify?.message && (
-                    <Typography variant="pi">
-                        {data.notify.message}
+            {/* The primary AI message */}
+            {data.message && (
+                <Box marginBottom={data.results?.length > 0 ? 4 : 0}>
+                    <Typography
+                        variant="omega"
+                        textColor="neutral800"
+                        style={{ lineHeight: '1.6', whiteSpace: 'pre-wrap' }}
+                    >
+                        {data.message}
                     </Typography>
-                )}
-            </Flex>
-
-            {/* Timeline */}
-            {hasTimeline && (
-                <Box marginBottom={4}>
-                    <Typography variant="delta" fontWeight="bold">
-                        Execution Timeline
-                    </Typography>
-
-                    <Box marginTop={2}>
-                        {data.timeline.map((step: string, i: number) => (
-                            <Flex key={i} gap={2} alignItems="center" marginBottom={1}>
-                                <Check width="12px" />
-                                <Typography variant="pi">{step}</Typography>
-                            </Flex>
-                        ))}
-                    </Box>
                 </Box>
             )}
 
-            {/* Actions */}
-            {hasActions && (
-                <Box marginBottom={4}>
-                    <Typography variant="delta" fontWeight="bold">
-                        Actions Executed
-                    </Typography>
+            {/* Tool Results integrated seamlessly */}
+            {data.results?.map((res: any, i: number) => {
+                if (!res.data && !res.error) return null;
 
-                    <Box marginTop={2}>
-                        {data.actions.map((a: any, i: number) => (
-                            <Box
-                                key={i}
-                                padding={3}
-                                background="neutral100"
-                                borderRadius="8px"
-                                marginBottom={2}
-                            >
-                                <Typography variant="pi" fontWeight="bold">
-                                    {toolIcons[a.tool] || "⚙"} {a.tool}
-                                </Typography>
+                return (
+                    <Box key={i} marginTop={2}>
+                        {/* Result Data Summary (e.g. Tables) */}
+                        {res.data && (
+                            <SmartDataRenderer data={res.data} />
+                        )}
 
-                                {a.args && (
-                                    <Box
-                                        marginTop={2}
-                                        padding={2}
-                                        background="neutral0"
-                                        borderRadius="6px"
-                                        style={{ maxHeight: 150, overflow: "auto" }}
-                                    >
-                                        <pre style={{ fontSize: 12 }}>
-                                            {JSON.stringify(a.args, null, 2)}
-                                        </pre>
-                                    </Box>
-                                )}
-                            </Box>
-                        ))}
-                    </Box>
-                </Box>
-            )}
-
-            {/* Results */}
-            {hasResults && (
-                <Box>
-                    <Typography variant="delta" fontWeight="bold">
-                        Results
-                    </Typography>
-
-                    <Box marginTop={2}>
-                        {data.results.map((r: any, i: number) => (
-                            <Box
-                                key={i}
-                                padding={3}
-                                background="neutral0"
-                                borderRadius="8px"
-                                marginBottom={2}
-                            >
+                        {/* Error Indicator (Subtle) */}
+                        {!res.success && res.error && (
+                            <Box marginTop={2} padding={2} background="danger100" hasRadius>
                                 <Flex gap={2} alignItems="center">
-                                    {r.success ? (
-                                        <Check width="14px" />
-                                    ) : (
-                                        <WarningCircle width="14px" />
-                                    )}
-
-                                    <Typography variant="pi">{r.tool}</Typography>
-
-                                    <Badge variant={r.success ? "success" : "warning"}>
-                                        {r.success ? "Completed" : "Failed"}
-                                    </Badge>
+                                    <WarningCircle color="danger600" width="12px" />
+                                    <Typography variant="pi" textColor="danger700" fontWeight="bold">
+                                        Error: {res.tool}
+                                    </Typography>
+                                    <Typography variant="pi" textColor="danger700">
+                                        {res.error}
+                                    </Typography>
                                 </Flex>
-
-                                {(r.data || r.entry || r.schema || r.plan) && (
-                                    <Box
-                                        marginTop={2}
-                                        padding={2}
-                                        background="neutral100"
-                                        borderRadius="6px"
-                                        style={{ maxHeight: 200, overflow: "auto" }}
-                                    >
-                                        <pre style={{ fontSize: 12 }}>
-                                            {JSON.stringify(
-                                                r.data || r.entry || r.schema || r.plan,
-                                                null,
-                                                2
-                                            )}
-                                        </pre>
-                                    </Box>
-                                )}
                             </Box>
-                        ))}
+                        )}
                     </Box>
-                </Box>
-            )}
-
-            {/* Empty fallback */}
-            {!hasTimeline && !hasActions && !hasResults && (
-                <Typography variant="pi" textColor="neutral600">
-                    Operation completed. No additional details were returned.
-                </Typography>
-            )}
+                );
+            })}
         </Box>
     );
 }

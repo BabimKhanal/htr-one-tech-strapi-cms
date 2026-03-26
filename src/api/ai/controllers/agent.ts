@@ -1,6 +1,5 @@
 import OpenAI from "openai";
 import dotenv from "dotenv";
-
 import createContentType from "../services/createContentType";
 
 dotenv.config();
@@ -11,25 +10,55 @@ const openai = new OpenAI({
 });
 
 /* ------------------------------------------------ */
+/* CONSTANTS */
+/* ------------------------------------------------ */
+
+const MAX_AGENT_STEPS = 6;
+const MAX_TOOL_CALLS = 4;
+
+const SAFE_ATTRIBUTE_TYPES = [
+  "string",
+  "text",
+  "richtext",
+  "integer",
+  "biginteger",
+  "float",
+  "decimal",
+  "boolean",
+  "date",
+  "datetime",
+  "json",
+  "uid",
+  "email",
+  "enumeration",
+  "relation",
+  "media",
+];
+
+const PROTECTED_FIELDS = ["id", "createdAt", "updatedAt", "publishedAt"];
+
+/* ------------------------------------------------ */
 /* SYSTEM PROMPT */
 /* ------------------------------------------------ */
 
 const BASE_PROMPT = `
 You are a Strapi CMS AI Copilot.
 
-You can:
-- answer general questions like ChatGPT
-- inspect the CMS using tools
-- help users understand schemas and content
+Capabilities:
+- Answer CMS questions
+- Inspect schemas
+- Generate content types
+- Read entries
 
-Rules:
+Safety Rules:
 - Only operate on api:: content types
-- Never modify admin:: or strapi:: types
-- Use tools when the question requires CMS data
+- Never access admin:: or strapi:: models
+- Never modify protected fields
+- Always validate schemas
 `;
 
 /* ------------------------------------------------ */
-/* TOOLS */
+/* TOOL DEFINITIONS */
 /* ------------------------------------------------ */
 
 const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -46,7 +75,9 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       name: "get_schema",
       parameters: {
         type: "object",
-        properties: { uid: { type: "string" } },
+        properties: {
+          uid: { type: "string" },
+        },
         required: ["uid"],
       },
     },
@@ -97,6 +128,38 @@ const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
 ];
 
 /* ------------------------------------------------ */
+/* VALIDATION */
+/* ------------------------------------------------ */
+
+function assertSafe(uid: string) {
+  if (!uid.startsWith("api::")) {
+    throw new Error(`Access denied for ${uid}`);
+  }
+}
+
+function validateAttributes(attributes: any) {
+  for (const [key, value] of Object.entries(attributes)) {
+    const attr: any = value;
+
+    if (PROTECTED_FIELDS.includes(key)) {
+      throw new Error(`Field "${key}" is protected`);
+    }
+
+    if (!SAFE_ATTRIBUTE_TYPES.includes(attr.type)) {
+      throw new Error(`Unsafe attribute type: ${attr.type}`);
+    }
+
+    if (attr.target?.startsWith("admin::")) {
+      throw new Error("Relations to admin models forbidden");
+    }
+
+    if (attr.target?.startsWith("strapi::")) {
+      throw new Error("Relations to core models forbidden");
+    }
+  }
+}
+
+/* ------------------------------------------------ */
 /* CMS HELPERS */
 /* ------------------------------------------------ */
 
@@ -115,12 +178,6 @@ function getSchemas() {
     );
 }
 
-function assertSafe(uid: string) {
-  if (!uid.startsWith("api::")) {
-    throw new Error(`Restricted UID: ${uid}`);
-  }
-}
-
 /* ------------------------------------------------ */
 /* TOOL EXECUTION */
 /* ------------------------------------------------ */
@@ -135,22 +192,19 @@ async function runAction(name: string, args: any) {
       return strapi.contentTypes[args.uid];
 
     case "create_content_type":
-      if (!args.attributes || Object.keys(args.attributes).length === 0) {
-        args.attributes = {
-          title: { type: "string", required: true },
-          description: { type: "text" },
-        };
-      }
+      validateAttributes(args.attributes);
+
       return createContentType(args);
 
     case "update_content_type": {
       assertSafe(args.uid);
+      validateAttributes(args.attributes);
 
       const existing = strapi.contentTypes[args.uid];
 
-      const mergedAttributes = {
+      const merged = {
         ...existing.attributes,
-        ...(args.attributes || {}),
+        ...args.attributes,
       };
 
       return strapi
@@ -158,7 +212,7 @@ async function runAction(name: string, args: any) {
         .services["content-types"].editContentType(args.uid, {
           contentType: {
             displayName: existing.info.displayName,
-            attributes: mergedAttributes,
+            attributes: merged,
           },
         });
     }
@@ -200,10 +254,13 @@ ${JSON.stringify(Object.keys(getSchemas()))}
   ];
 
   const timeline: string[] = [];
+  const actions: any[] = [];
   const results: any[] = [];
+
+  let toolCalls = 0;
   let finalMessage = "";
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < MAX_AGENT_STEPS; i++) {
     const response = await openai.chat.completions.create({
       model: "openai/gpt-4o-mini",
       messages,
@@ -214,27 +271,34 @@ ${JSON.stringify(Object.keys(getSchemas()))}
     const msg = response.choices[0].message;
     messages.push(msg);
 
-    /* -------- normal chat response -------- */
-
     if (!msg.tool_calls) {
       finalMessage = msg.content || "";
       break;
     }
 
-    /* -------- tool execution -------- */
-
     for (const call of msg.tool_calls) {
       if (call.type !== "function") continue;
+
+      toolCalls++;
+      if (toolCalls > MAX_TOOL_CALLS) {
+        throw new Error("Too many tool calls");
+      }
 
       const name = call.function.name;
       const args = JSON.parse(call.function.arguments);
 
       timeline.push(`Running ${name}`);
 
+      actions.push({ tool: name, args });
+
       try {
         const result = await runAction(name, args);
 
-        results.push({ tool: name, success: true });
+        results.push({
+          tool: name,
+          success: true,
+          data: result,
+        });
 
         messages.push({
           role: "tool",
@@ -260,6 +324,7 @@ ${JSON.stringify(Object.keys(getSchemas()))}
   return {
     success: results.every((r) => r.success),
     timeline,
+    actions,
     results,
     message: finalMessage,
   };
@@ -280,7 +345,7 @@ export default {
     try {
       const result = await runAgent(message, prompt);
 
-      return ctx.send({
+      ctx.send({
         ...result,
         notify: {
           type: result.success ? "success" : "warning",
@@ -288,7 +353,7 @@ export default {
         },
       });
     } catch (error: any) {
-      return ctx.send({
+      ctx.send({
         success: false,
         error: error.message,
       });
